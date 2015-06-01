@@ -159,15 +159,6 @@
 	_pagingScrollView.backgroundColor = [UIColor blackColor];
     _pagingScrollView.contentSize = [self contentSizeForPagingScrollView];
 	[self.view addSubview:_pagingScrollView];
-    
-    //page control
-    _pageControl = [[UIPageControl alloc] init];
-    _pageControl.center = CGPointMake([[UIScreen mainScreen] bounds].size.width / 2, [[UIScreen mainScreen] bounds].size.height - 80);
-    _pageControl.pageIndicatorTintColor = [UIColor whiteColor];
-    _pageControl.currentPageIndicatorTintColor = [UIColor colorWithRed:(CGFloat)217/255 green:(CGFloat)70/255 blue:(CGFloat)72/255 alpha:1];
-    _pageControl.enabled = NO;
-    _pageControl.numberOfPages = [self numberOfPhotos];
-    [self.view addSubview:_pageControl];
 	
     // Toolbar
     _toolbar = [[UIToolbar alloc] initWithFrame:[self frameForToolbarAtOrientation:self.interfaceOrientation]];
@@ -1025,8 +1016,8 @@
 #endif
     CGRect captionFrame = CGRectMake(pageFrame.origin.x + pageFrame.size.width - 20 - selectedButton.frame.size.width,
                                      statusBarOffset + yOffset,
-                                     selectedButton.frame.size.width,
-                                     selectedButton.frame.size.height);
+                                     36,
+                                     36);
     return CGRectIntegral(captionFrame);
 }
 
@@ -1050,9 +1041,6 @@
 	if (_currentPageIndex != previousCurrentPage) {
         [self didStartViewingPageAtIndex:index];
     }
-    
-    NSInteger page = _pagingScrollView.contentOffset.x / _pagingScrollView.frame.size.width;
-    _pageControl.currentPage = page;
 	
 }
 
@@ -1241,140 +1229,140 @@
 - (void)setControlsHidden:(BOOL)hidden animated:(BOOL)animated permanent:(BOOL)permanent {
     
     // Force visible
-    if (![self numberOfPhotos] || _gridController || _alwaysShowControls)
-        hidden = NO;
-    
-    // Cancel any timers
-    [self cancelControlHiding];
-    
-    // Animations & positions
-    BOOL slideAndFade = SYSTEM_VERSION_GREATER_THAN_OR_EQUAL_TO(@"7");
-    CGFloat animatonOffset = 20;
-    CGFloat animationDuration = (animated ? 0.35 : 0);
-    
-    // Status bar
-    if (!_leaveStatusBarAlone) {
-        if ([self respondsToSelector:@selector(setNeedsStatusBarAppearanceUpdate)]) {
-            
-            // iOS 7
-            // Hide status bar
-            if (!_isVCBasedStatusBarAppearance) {
-                
-                // Non-view controller based
-                [[UIApplication sharedApplication] setStatusBarHidden:hidden withAnimation:animated ? UIStatusBarAnimationSlide : UIStatusBarAnimationNone];
-                
-            } else {
-                
-                // View controller based so animate away
-                _statusBarShouldBeHidden = hidden;
-                [UIView animateWithDuration:animationDuration animations:^(void) {
-                    [self setNeedsStatusBarAppearanceUpdate];
-                } completion:^(BOOL finished) {}];
-                
-            }
-
-        } else {
-            
-            // iOS < 7
-            // Status bar and nav bar positioning
-            BOOL fullScreen = YES;
-#if __IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_7_0
-            if (SYSTEM_VERSION_LESS_THAN(@"7")) fullScreen = self.wantsFullScreenLayout;
-#endif
-            if (fullScreen) {
-                
-                // Need to get heights and set nav bar position to overcome display issues
-                
-                // Get status bar height if visible
-                CGFloat statusBarHeight = 0;
-                if (![UIApplication sharedApplication].statusBarHidden) {
-                    CGRect statusBarFrame = [[UIApplication sharedApplication] statusBarFrame];
-                    statusBarHeight = MIN(statusBarFrame.size.height, statusBarFrame.size.width);
-                }
-                
-                // Status Bar
-                [[UIApplication sharedApplication] setStatusBarHidden:hidden withAnimation:animated?UIStatusBarAnimationFade:UIStatusBarAnimationNone];
-                
-                // Get status bar height if visible
-                if (![UIApplication sharedApplication].statusBarHidden) {
-                    CGRect statusBarFrame = [[UIApplication sharedApplication] statusBarFrame];
-                    statusBarHeight = MIN(statusBarFrame.size.height, statusBarFrame.size.width);
-                }
-                
-                // Set navigation bar frame
-                CGRect navBarFrame = self.navigationController.navigationBar.frame;
-                navBarFrame.origin.y = statusBarHeight;
-                self.navigationController.navigationBar.frame = navBarFrame;
-                
-            }
-            
-        }
-    }
-    
-    // Toolbar, nav bar and captions
-    // Pre-appear animation positions for iOS 7 sliding
-    if (slideAndFade && [self areControlsHidden] && !hidden && animated) {
-        
-        // Toolbar
-        _toolbar.frame = CGRectOffset([self frameForToolbarAtOrientation:self.interfaceOrientation], 0, animatonOffset);
-        
-        // Captions
-        for (MWZoomingScrollView *page in _visiblePages) {
-            if (page.captionView) {
-                MWCaptionView *v = page.captionView;
-                // Pass any index, all we're interested in is the Y
-                CGRect captionFrame = [self frameForCaptionView:v atIndex:0];
-                captionFrame.origin.x = v.frame.origin.x; // Reset X
-                v.frame = CGRectOffset(captionFrame, 0, animatonOffset);
-            }
-        }
-        
-    }
-    [UIView animateWithDuration:animationDuration animations:^(void) {
-        
-        CGFloat alpha = hidden ? 0 : 1;
-
-        // Nav bar slides up on it's own on iOS 7
-        [self.navigationController.navigationBar setAlpha:alpha];
-        
-        // Toolbar
-        if (slideAndFade) {
-            _toolbar.frame = [self frameForToolbarAtOrientation:self.interfaceOrientation];
-            if (hidden) _toolbar.frame = CGRectOffset(_toolbar.frame, 0, animatonOffset);
-        }
-        _toolbar.alpha = alpha;
-
-        // Captions
-        for (MWZoomingScrollView *page in _visiblePages) {
-            if (page.captionView) {
-                MWCaptionView *v = page.captionView;
-                if (slideAndFade) {
-                    // Pass any index, all we're interested in is the Y
-                    CGRect captionFrame = [self frameForCaptionView:v atIndex:0];
-                    captionFrame.origin.x = v.frame.origin.x; // Reset X
-                    if (hidden) captionFrame = CGRectOffset(captionFrame, 0, animatonOffset);
-                    v.frame = captionFrame;
-                }
-                v.alpha = alpha;
-            }
-        }
-        
-        // Selected buttons
-        for (MWZoomingScrollView *page in _visiblePages) {
-            if (page.selectedButton) {
-                UIButton *v = page.selectedButton;
-                CGRect newFrame = [self frameForSelectedButton:v atIndex:0];
-                newFrame.origin.x = v.frame.origin.x;
-                v.frame = newFrame;
-            }
-        }
-
-    } completion:^(BOOL finished) {}];
-    
-	// Control hiding timer
-	// Will cancel existing timer but only begin hiding if
-	// they are visible
-	if (!permanent) [self hideControlsAfterDelay];
+//    if (![self numberOfPhotos] || _gridController || _alwaysShowControls)
+//        hidden = NO;
+//    
+//    // Cancel any timers
+//    [self cancelControlHiding];
+//    
+//    // Animations & positions
+//    BOOL slideAndFade = SYSTEM_VERSION_GREATER_THAN_OR_EQUAL_TO(@"7");
+//    CGFloat animatonOffset = 20;
+//    CGFloat animationDuration = (animated ? 0.35 : 0);
+//    
+//    // Status bar
+//    if (!_leaveStatusBarAlone) {
+//        if ([self respondsToSelector:@selector(setNeedsStatusBarAppearanceUpdate)]) {
+//            
+//            // iOS 7
+//            // Hide status bar
+//            if (!_isVCBasedStatusBarAppearance) {
+//                
+//                // Non-view controller based
+//                [[UIApplication sharedApplication] setStatusBarHidden:hidden withAnimation:animated ? UIStatusBarAnimationSlide : UIStatusBarAnimationNone];
+//                
+//            } else {
+//                
+//                // View controller based so animate away
+//                _statusBarShouldBeHidden = hidden;
+//                [UIView animateWithDuration:animationDuration animations:^(void) {
+//                    [self setNeedsStatusBarAppearanceUpdate];
+//                } completion:^(BOOL finished) {}];
+//                
+//            }
+//
+//        } else {
+//            
+//            // iOS < 7
+//            // Status bar and nav bar positioning
+//            BOOL fullScreen = YES;
+//#if __IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_7_0
+//            if (SYSTEM_VERSION_LESS_THAN(@"7")) fullScreen = self.wantsFullScreenLayout;
+//#endif
+//            if (fullScreen) {
+//                
+//                // Need to get heights and set nav bar position to overcome display issues
+//                
+//                // Get status bar height if visible
+//                CGFloat statusBarHeight = 0;
+//                if (![UIApplication sharedApplication].statusBarHidden) {
+//                    CGRect statusBarFrame = [[UIApplication sharedApplication] statusBarFrame];
+//                    statusBarHeight = MIN(statusBarFrame.size.height, statusBarFrame.size.width);
+//                }
+//                
+//                // Status Bar
+//                [[UIApplication sharedApplication] setStatusBarHidden:hidden withAnimation:animated?UIStatusBarAnimationFade:UIStatusBarAnimationNone];
+//                
+//                // Get status bar height if visible
+//                if (![UIApplication sharedApplication].statusBarHidden) {
+//                    CGRect statusBarFrame = [[UIApplication sharedApplication] statusBarFrame];
+//                    statusBarHeight = MIN(statusBarFrame.size.height, statusBarFrame.size.width);
+//                }
+//                
+//                // Set navigation bar frame
+//                CGRect navBarFrame = self.navigationController.navigationBar.frame;
+//                navBarFrame.origin.y = statusBarHeight;
+//                self.navigationController.navigationBar.frame = navBarFrame;
+//                
+//            }
+//            
+//        }
+//    }
+//    
+//    // Toolbar, nav bar and captions
+//    // Pre-appear animation positions for iOS 7 sliding
+//    if (slideAndFade && [self areControlsHidden] && !hidden && animated) {
+//        
+//        // Toolbar
+//        _toolbar.frame = CGRectOffset([self frameForToolbarAtOrientation:self.interfaceOrientation], 0, animatonOffset);
+//        
+//        // Captions
+//        for (MWZoomingScrollView *page in _visiblePages) {
+//            if (page.captionView) {
+//                MWCaptionView *v = page.captionView;
+//                // Pass any index, all we're interested in is the Y
+//                CGRect captionFrame = [self frameForCaptionView:v atIndex:0];
+//                captionFrame.origin.x = v.frame.origin.x; // Reset X
+//                v.frame = CGRectOffset(captionFrame, 0, animatonOffset);
+//            }
+//        }
+//        
+//    }
+//    [UIView animateWithDuration:animationDuration animations:^(void) {
+//        
+//        CGFloat alpha = hidden ? 0 : 1;
+//
+//        // Nav bar slides up on it's own on iOS 7
+//        [self.navigationController.navigationBar setAlpha:alpha];
+//        
+//        // Toolbar
+//        if (slideAndFade) {
+//            _toolbar.frame = [self frameForToolbarAtOrientation:self.interfaceOrientation];
+//            if (hidden) _toolbar.frame = CGRectOffset(_toolbar.frame, 0, animatonOffset);
+//        }
+//        _toolbar.alpha = alpha;
+//
+//        // Captions
+//        for (MWZoomingScrollView *page in _visiblePages) {
+//            if (page.captionView) {
+//                MWCaptionView *v = page.captionView;
+//                if (slideAndFade) {
+//                    // Pass any index, all we're interested in is the Y
+//                    CGRect captionFrame = [self frameForCaptionView:v atIndex:0];
+//                    captionFrame.origin.x = v.frame.origin.x; // Reset X
+//                    if (hidden) captionFrame = CGRectOffset(captionFrame, 0, animatonOffset);
+//                    v.frame = captionFrame;
+//                }
+//                v.alpha = alpha;
+//            }
+//        }
+//        
+//        // Selected buttons
+//        for (MWZoomingScrollView *page in _visiblePages) {
+//            if (page.selectedButton) {
+//                UIButton *v = page.selectedButton;
+//                CGRect newFrame = [self frameForSelectedButton:v atIndex:0];
+//                newFrame.origin.x = v.frame.origin.x;
+//                v.frame = newFrame;
+//            }
+//        }
+//
+//    } completion:^(BOOL finished) {}];
+//    
+//	// Control hiding timer
+//	// Will cancel existing timer but only begin hiding if
+//	// they are visible
+//	if (!permanent) [self hideControlsAfterDelay];
 	
 }
 

@@ -22,7 +22,6 @@
 	
 	// Views
 	UIScrollView *_pagingScrollView;
-    UIPageControl *_pageControl;
 	
 	// Paging & layout
 	NSMutableSet *_visiblePages, *_recycledPages;
