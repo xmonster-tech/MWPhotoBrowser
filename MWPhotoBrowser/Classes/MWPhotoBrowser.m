@@ -159,6 +159,15 @@
 	_pagingScrollView.backgroundColor = [UIColor blackColor];
     _pagingScrollView.contentSize = [self contentSizeForPagingScrollView];
 	[self.view addSubview:_pagingScrollView];
+    
+    //page control
+    _pageControl = [[UIPageControl alloc] init];
+    _pageControl.center = CGPointMake([[UIScreen mainScreen] bounds].size.width / 2, [[UIScreen mainScreen] bounds].size.height - 80);
+    _pageControl.pageIndicatorTintColor = [UIColor whiteColor];
+    _pageControl.currentPageIndicatorTintColor = [UIColor colorWithRed:(CGFloat)217/255 green:(CGFloat)70/255 blue:(CGFloat)72/255 alpha:1];
+    _pageControl.enabled = NO;
+    _pageControl.numberOfPages = [self numberOfPhotos];
+    [self.view addSubview:_pageControl];
 	
     // Toolbar
     _toolbar = [[UIToolbar alloc] initWithFrame:[self frameForToolbarAtOrientation:self.interfaceOrientation]];
@@ -1041,6 +1050,9 @@
 	if (_currentPageIndex != previousCurrentPage) {
         [self didStartViewingPageAtIndex:index];
     }
+    
+    NSInteger page = _pagingScrollView.contentOffset.x / _pagingScrollView.frame.size.width;
+    _pageControl.currentPage = page;
 	
 }
 
